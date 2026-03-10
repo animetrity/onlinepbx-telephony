@@ -9,6 +9,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import com.github.animetrity.onlinepbx.models.PbxCallHistoryResponse;
+
 public class OnlinePbxClient {
     private final String domain;
     private final String apiKey;
@@ -48,6 +54,25 @@ public class OnlinePbxClient {
             throw new RuntimeException("Помилка авторизації в OnlinePBX: " + response.body());
         }
     }
+
+
+    // Отримання дзвінків за датою (максимальний інтервал в OnlinePBX - 1 тиждень)
+    public PbxCallHistoryResponse getCallsByDate(LocalDate fromDate, LocalDate toDate) throws Exception {
+        long fromStamp = fromDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
+        // Беремо початок наступного дня і віднімаємо 1 секунду, щоб отримати 23:59:59 поточного
+        long toStamp = toDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toEpochSecond() - 1;
+
+        String body = "start_stamp_from=" + fromStamp + "&start_stamp_to=" + toStamp;
+        return sendPostRequest("mongo_history/search.json", body, PbxCallHistoryResponse.class);
+    }
+
+    // Пошук дзвінків за конкретним номером (вхідні та вихідні)
+    public PbxCallHistoryResponse getCallsByNumber(String phoneNumber) throws Exception {
+        String encodedNumber = URLEncoder.encode(phoneNumber, StandardCharsets.UTF_8).replace("+", "%2B");
+        String body = "phone_numbers=" + encodedNumber;
+        return sendPostRequest("mongo_history/search.json", body, PbxCallHistoryResponse.class);
+    }
+
 
     // Внутрішній метод для виконання самого HTTP-запиту
     private String executeRequest(String endpoint, String body) throws Exception {
