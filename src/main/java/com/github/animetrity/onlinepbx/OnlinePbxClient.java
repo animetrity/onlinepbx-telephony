@@ -67,9 +67,13 @@ public class OnlinePbxClient {
     }
 
     // Пошук дзвінків за конкретним номером (вхідні та вихідні)
-    public PbxCallHistoryResponse getCallsByNumber(String phoneNumber) throws Exception {
+    public PbxCallHistoryResponse getCallsByNumber(String phoneNumber, LocalDate fromDate, LocalDate toDate) throws Exception {
+        long fromStamp = fromDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
+        // Беремо початок наступного дня і віднімаємо 1 секунду, щоб отримати 23:59:59 поточного
+        long toStamp = toDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toEpochSecond() - 1;
+
         String encodedNumber = URLEncoder.encode(phoneNumber, StandardCharsets.UTF_8).replace("+", "%2B");
-        String body = "phone_numbers=" + encodedNumber;
+        String body = "sub_phone_numbers=" + encodedNumber + "&start_stamp_from=" + fromStamp + "&start_stamp_to=" + toStamp;
         return sendPostRequest("mongo_history/search.json", body, PbxCallHistoryResponse.class);
     }
 
@@ -78,7 +82,7 @@ public class OnlinePbxClient {
     private String executeRequest(String endpoint, String body) throws Exception {
         String url = "https://api.onlinepbx.ru/" + this.domain + "/" + endpoint;
         String authHeader = this.sessionKeyId + ":" + this.sessionKey; // Формат key_id:key
-
+        System.out.println(authHeader);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/x-www-form-urlencoded")
